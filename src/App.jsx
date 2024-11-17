@@ -48,78 +48,8 @@ const App = () => {
   const handleCalculate = async () => {
 
     setIsLoading(true);
-    await displayCanvas();
+    // convert to canvas 
 
-    try {
-      // Send the prompt to the backend
-      const response = await fetch(`${backendURL}/calculate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image:canvasUrl,
-          dict_of_vars:""
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
-      }
-
-      const {data} = await response.json();
-      console.log('Backend Response:', data);
-
-      if (data) {
-        console.log(data);
-        const result=data.result;
-        const elements =convertToExcalidrawElements([
-          {
-            type: "text",
-            x: 100,
-            y: 100,
-            text: result.toString()
-          }
-        ]);
-        updateElements(elements)
-      }
-    } catch (error) {
-      console.error("Error fetching data from backend:", error);
-    } finally {
-      setIsLoading(false);
-      setPrompt(''); // Clear the prompt input
-    }
-  };
-
-  const updateElements=(elements)=>{
-    const previousElements = excalidrawAPI.getSceneElements();
-    const sceneData = {
-      elements:previousElements.concat(elements),
-    };
-    excalidrawAPI.updateScene(sceneData);
-  }
-
-  const updateScene = async (diagramDefinition) => {
-    
-    const { elements, files } = await parseMermaidToExcalidraw(diagramDefinition);
-    
-    const updatedElements = convertToExcalidrawElements(elements);
-    // console.log(files)
-    updateElements(updatedElements);
-    if (files) {
-      excalidrawAPI.addFiles(Object.values(files));
-    }
-    // excalidrawAPI.scrollToContent(excalidrawAPI.getSceneElements,
-    //   {
-    //     fitToContent:true,
-    //     // animate:true,
-    //   }
-    // )
-    excalidrawAPI.addFiles(files)
-  };
-  const [excalidrawAPI, setExcalidrawAPI] = useState(null);
-  const [canvasUrl, setCanvasUrl] = useState("");
-  const displayCanvas = async () => {
     if (!excalidrawAPI) {
       return
     }
@@ -138,9 +68,81 @@ const App = () => {
     });
     const ctx = canvas.getContext("2d");
     ctx.font = "30px Virgil";
-    // ctx.strokeText("My custom text", 50, 60);
-    setCanvasUrl(canvas.toDataURL('image/png'));
-    console.log(canvasUrl);
+
+    try {
+      // Send the prompt to the backend
+      const response = await fetch(`${backendURL}/calculate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image:canvas.toDataURL('image/png'),
+          dict_of_vars:""
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.statusText}`);
+      }
+
+      const {data} = await response.json();
+      console.log('Backend Response:', data);
+
+      if (data) {
+        console.log(data);
+        const result=data.result;
+        const elements =convertToExcalidrawElements([
+          {
+            type: "text",
+            x: 100,
+            y: 150,
+            text: `Answer : ${result}`,
+            fontSize: 20,
+            strokeColor:"#008000"
+          }
+        ]);
+        updateElements(elements)
+      }
+    } catch (error) {
+      console.error("Error fetching data from backend:", error);
+    } finally {
+      setIsLoading(false);
+      setPrompt(''); // Clear the prompt input
+    }
+  };
+
+  const updateElements=(elements)=>{
+    const previousElements = excalidrawAPI.getSceneElements();
+    const sceneData = {
+      elements:previousElements.concat(elements),
+    };
+    excalidrawAPI.updateScene(sceneData);
+    excalidrawAPI.scrollToContent(elements,
+      {
+        fitToViewport:true,
+        animate:true,
+      }
+    )
+  }
+
+  const updateScene = async (diagramDefinition) => {
+    
+    const { elements, files } = await parseMermaidToExcalidraw(diagramDefinition);
+    
+    const updatedElements = convertToExcalidrawElements(elements);
+    // console.log(files)
+    updateElements(updatedElements);
+    if (files) {
+      excalidrawAPI.addFiles(Object.values(files));
+    }
+    
+    excalidrawAPI.addFiles(files)
+  };
+  const [excalidrawAPI, setExcalidrawAPI] = useState(null);
+  const [canvasUrl, setCanvasUrl] = useState("");
+  const displayCanvas = async () => {
+    
     
   }
 
