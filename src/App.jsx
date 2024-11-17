@@ -6,6 +6,7 @@ import { parseMermaidToExcalidraw } from '@excalidraw/mermaid-to-excalidraw';
 const App = () => {
   const [prompt, setPrompt] = useState('');
   const [elements, setElements] = useState([]);
+  const [dictOfVars, setDictOfVars] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const backendURL = import.meta.env.VITE_API_URL;
 
@@ -64,7 +65,7 @@ const App = () => {
         exportWithDarkMode: true,
       },
       files: excalidrawAPI.getFiles(),
-      getDimensions: () => { return {width: 350, height: 350}}
+      getDimensions: () => { return {width: window.innerWidth, height: innerHeight}}
     });
     const ctx = canvas.getContext("2d");
     ctx.font = "30px Virgil";
@@ -78,7 +79,7 @@ const App = () => {
         },
         body: JSON.stringify({
           image:canvas.toDataURL('image/png'),
-          dict_of_vars:""
+          dict_of_vars:dictOfVars
         }),
       });
 
@@ -86,17 +87,43 @@ const App = () => {
         throw new Error(`Error: ${response.statusText}`);
       }
 
-      const {data} = await response.json();
-      console.log('Backend Response:', data);
+      const resp = await response.json();
+      console.log('Backend Response:', resp);
 
-      if (data) {
-        console.log(data);
-        const result=data.result;
-        const elements =convertToExcalidrawElements([
+      if (resp) {
+        console.log('Responnse: ',resp);
+        resp.data.forEach((data) => {
+          if (data.assign === true) {
+              // dict_of_vars[resp.result] = resp.answer;
+              setDictOfVars({
+                  ...dictOfVars,
+                  [data.expr]: data.result
+              });
+          }
+      });
+        const {result,expr}=resp.data[0];
+        const curElements = excalidrawAPI.getSceneElements();
+        const xPos = curElements[curElements.length-1].x
+        const xWidth = curElements[curElements.length-1].width
+        const yPos = curElements[curElements.length-1].y
+        const yHeight = curElements[curElements.length-1].height
+        const elements=convertToExcalidrawElements([
           {
             type: "text",
-            x: 100,
-            y: 150,
+            x: xPos+xWidth,
+            y: yPos+yHeight,
+            width: 1000,
+            height: 300,
+            text: `Expression : ${expr}`,
+            fontSize: 20,
+            strokeColor:"#008000"
+          },
+          {
+            type: "text",
+            x: xPos+xWidth,
+            y: yPos+40+yHeight,
+            width: 500,
+            height: 300,
             text: `Answer : ${result}`,
             fontSize: 20,
             strokeColor:"#008000"
@@ -142,7 +169,8 @@ const App = () => {
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
   const [canvasUrl, setCanvasUrl] = useState("");
   const displayCanvas = async () => {
-    
+  
+    // const sample = 
     
   }
 
@@ -196,6 +224,32 @@ const App = () => {
           <Excalidraw
           excalidrawAPI={(api)=>setExcalidrawAPI(api)}
             initialData={{
+              elements: convertToExcalidrawElements([
+                {
+                   "type":"diamond",
+                   "x":100,
+                   "y":100,
+                   "label":{
+                      "text":"apple",
+                      "wrapText":"wrap",
+                      "fontSize":14,
+                      "fontName":"Arial"
+                   }
+                },
+                {
+                   "type":"rectangle",
+                   "x":300,
+                   "y":290,
+                   "width":200,
+                   "height":100,
+                   "label":{
+                      "text":"pieapple",
+                      "wrapText":"wrap",
+                      "fontSize":14,
+                      "fontName":"Arial"
+                   }
+                }
+             ]),
               appState: { 
                 theme: "dark",
                 gridColor: "#2d2d2d"
@@ -206,6 +260,7 @@ const App = () => {
             gridModeEnabled
             renderTopRightUI={() => {
               return (
+                <>
                 <button
                   style={{
                     background: "#70b1ec",
@@ -215,9 +270,25 @@ const App = () => {
                     fontWeight: "bold",
                   }}
                   onClick={handleCalculate}
-                >
+                  >
                   Click me
                 </button>
+                <button
+                  style={{
+                    background: "#70b1ec",
+                    border: "none",
+                    color: "#fff",
+                    width: "max-content",
+                    fontWeight: "bold",
+                  }}
+                  onClick={()=>{
+                    console.log(excalidrawAPI.getSceneElements());
+                    
+                  }}
+                  >
+                  get elements
+                </button>
+                  </>
                  );
                 }}
           />
