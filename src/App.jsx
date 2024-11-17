@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Excalidraw, convertToExcalidrawElements } from "@excalidraw/excalidraw";
+import { Excalidraw, convertToExcalidrawElements, exportToCanvas } from "@excalidraw/excalidraw";
 import { Send, Loader2 } from "lucide-react";
 import { parseMermaidToExcalidraw } from '@excalidraw/mermaid-to-excalidraw';
 
@@ -19,7 +19,7 @@ const App = () => {
 
     try {
       // Send the prompt to the backend
-      const response = await fetch(backendURL, {
+      const response = await fetch(`${backendURL}/generate-mermaid`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -45,6 +45,59 @@ const App = () => {
       setPrompt(''); // Clear the prompt input
     }
   };
+  const handleCalculate = async () => {
+
+    setIsLoading(true);
+    await displayCanvas();
+
+    try {
+      // Send the prompt to the backend
+      const response = await fetch(`${backendURL}/calculate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image:canvasUrl,
+          dict_of_vars:""
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.statusText}`);
+      }
+
+      const {data} = await response.json();
+      console.log('Backend Response:', data);
+
+      if (data) {
+        console.log(data);
+        const result=data.result;
+        const elements =convertToExcalidrawElements([
+          {
+            type: "text",
+            x: 100,
+            y: 100,
+            text: result.toString()
+          }
+        ]);
+        updateElements(elements)
+      }
+    } catch (error) {
+      console.error("Error fetching data from backend:", error);
+    } finally {
+      setIsLoading(false);
+      setPrompt(''); // Clear the prompt input
+    }
+  };
+
+  const updateElements=(elements)=>{
+    const previousElements = excalidrawAPI.getSceneElements();
+    const sceneData = {
+      elements:previousElements.concat(elements),
+    };
+    excalidrawAPI.updateScene(sceneData);
+  }
 
   const updateScene = async (diagramDefinition) => {
     
@@ -52,25 +105,44 @@ const App = () => {
     
     const updatedElements = convertToExcalidrawElements(elements);
     // console.log(files)
-    const previousElements = excalidrawAPI.getSceneElements();
-    const sceneData = {
-      elements:previousElements.concat(updatedElements),
-    };
-    excalidrawAPI.updateScene(sceneData);
+    updateElements(updatedElements);
     if (files) {
       excalidrawAPI.addFiles(Object.values(files));
     }
     // excalidrawAPI.scrollToContent(excalidrawAPI.getSceneElements,
     //   {
     //     fitToContent:true,
-    //     animate:true,
-    //     duration:500
+    //     // animate:true,
     //   }
     // )
     excalidrawAPI.addFiles(files)
   };
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
-
+  const [canvasUrl, setCanvasUrl] = useState("");
+  const displayCanvas = async () => {
+    if (!excalidrawAPI) {
+      return
+    }
+    const elements = excalidrawAPI.getSceneElements();
+    if (!elements || !elements.length) {
+      return
+    }
+    const canvas = await exportToCanvas({
+      elements,
+      appState: {
+        ...excalidrawAPI.getAppState(),
+        exportWithDarkMode: true,
+      },
+      files: excalidrawAPI.getFiles(),
+      getDimensions: () => { return {width: 350, height: 350}}
+    });
+    const ctx = canvas.getContext("2d");
+    ctx.font = "30px Virgil";
+    // ctx.strokeText("My custom text", 50, 60);
+    setCanvasUrl(canvas.toDataURL('image/png'));
+    console.log(canvasUrl);
+    
+  }
 
   return (
     <>
@@ -117,12 +189,12 @@ const App = () => {
           height: 'calc(100% - 180px)',
           overflow: 'hidden'
         }}>
+       
         
           <Excalidraw
           excalidrawAPI={(api)=>setExcalidrawAPI(api)}
             initialData={{
               appState: { 
-                zenModeEnabled: true,
                 theme: "dark",
                 gridColor: "#2d2d2d"
               },
@@ -140,7 +212,7 @@ const App = () => {
                     width: "max-content",
                     fontWeight: "bold",
                   }}
-                  onClick={() => console.log(excalidrawAPI.getSceneElements())}
+                  onClick={handleCalculate}
                 >
                   Click me
                 </button>
