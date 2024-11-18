@@ -213,6 +213,7 @@ const App = () => {
       }}>
         
         
+        
         {/* Excalidraw Canvas */}
         <div style={{ 
           width: '100%', 
@@ -223,39 +224,39 @@ const App = () => {
         
           <Excalidraw
           excalidrawAPI={(api)=>setExcalidrawAPI(api)}
-            initialData={{
-              elements: convertToExcalidrawElements([
-                {
-                   "type":"diamond",
-                   "x":100,
-                   "y":100,
-                   "label":{
-                      "text":"apple",
-                      "wrapText":"wrap",
-                      "fontSize":14,
-                      "fontName":"Arial"
-                   }
-                },
-                {
-                   "type":"rectangle",
-                   "x":300,
-                   "y":290,
-                   "width":200,
-                   "height":100,
-                   "label":{
-                      "text":"pieapple",
-                      "wrapText":"wrap",
-                      "fontSize":14,
-                      "fontName":"Arial"
-                   }
-                }
-             ]),
-              appState: { 
-                theme: "dark",
-                gridColor: "#2d2d2d"
-              },
-              scrollToContent: true,
-            }}
+            // initialData={{
+            //   elements: convertToExcalidrawElements([
+            //     {
+            //        "type":"diamond",
+            //        "x":100,
+            //        "y":100,
+            //        "label":{
+            //           "text":"apple",
+            //           "wrapText":"wrap",
+            //           "fontSize":14,
+            //           "fontName":"Arial"
+            //        }
+            //     },
+            //     {
+            //        "type":"rectangle",
+            //        "x":300,
+            //        "y":290,
+            //        "width":200,
+            //        "height":100,
+            //        "label":{
+            //           "text":"pieapple",
+            //           "wrapText":"wrap",
+            //           "fontSize":14,
+            //           "fontName":"Arial"
+            //        }
+            //     }
+            //  ]),
+            //   appState: { 
+            //     theme: "dark",
+            //     gridColor: "#2d2d2d"
+            //   },
+            //   scrollToContent: true,
+            // }}
             theme="dark"
             gridModeEnabled
             renderTopRightUI={() => {
@@ -271,7 +272,7 @@ const App = () => {
                   }}
                   onClick={handleCalculate}
                   >
-                  Click me
+                  Run Ai
                 </button>
                 <button
                   style={{
