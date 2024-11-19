@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import EditorJS from '@editorjs/editorjs';
 import Header from '@editorjs/header';
 import List from '@editorjs/list';
+import Checklist from '@editorjs/checklist';
 import CodeTool from '@editorjs/code';
 import InlineCode from '@editorjs/inline-code';
 import { Sparkles, Save, FileDown, FileUp } from 'lucide-react';
+import { parseMarkdownToEditorJS } from '../utils';
 
 const EditorComponent = () => {
   const editorRef = useRef(null);
@@ -82,36 +84,34 @@ const EditorComponent = () => {
       console.log('No text selected');
       return;
     }
-
+  
     setIsProcessing(true);
-    console.log(selectedText);
-    
     
     try {
-      const response = await fetch(`${backendURL}/enhance-text`, {
+      const response = await fetch(`${backendURL}/ask-ai`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          content: selectedText
+          question: selectedText
         }),
       });
       
       if (response.ok) {
-        const enhancedText = await response.json();
-        // Get the current selection range
-        const selection = window.getSelection();
-        const range = selection.getRangeAt(0);
+        const { result } = await response.json();
         
-        // Create a new text node with the enhanced content
-        const newText = document.createTextNode(enhancedText.content);
+        // Convert markdown to EditorJS blocks
+        const blocks = parseMarkdownToEditorJS(result);
         
-        // Replace the selected content with the enhanced text
-        range.deleteContents();
-        range.insertNode(newText);
+        // Insert each block
+        for (const block of blocks) {
+          await ejInstance.current.blocks.insert(
+            block.type,
+            block.data
+          );
+        }
         
-        // Clear the selection
         setSelectedText('');
       }
     } catch (error) {
@@ -157,6 +157,10 @@ const EditorComponent = () => {
           config: {
             defaultStyle: 'unordered'
           }
+        },
+        checklist: {
+          class: Checklist,
+          inlineToolbar: true,
         },
         code: {
           class: CodeTool,
@@ -415,6 +419,54 @@ const EditorComponent = () => {
         .ce-settings__button--active {
           color: #60a5fa;
         }
+
+         /* Checklist Styles */
+  .cdx-checklist {
+    margin: 1em 0;
+  }
+  
+  .cdx-checklist__item {
+    display: flex;
+    align-items: flex-start;
+    margin: 0.5em 0;
+  }
+  
+  .cdx-checklist__item-checkbox {
+    width: 20px;
+    height: 20px;
+    margin-right: 0.5em;
+    margin-top: 0.2em;
+    appearance: none;
+    border: 2px solid #666;
+    border-radius: 3px;
+    background-color: transparent;
+    cursor: pointer;
+  }
+  
+  .cdx-checklist__item-checkbox:checked {
+    background-color: #60a5fa;
+    border-color: #60a5fa;
+  }
+  
+  .cdx-checklist__item-checkbox:checked::after {
+    content: '✓';
+    display: block;
+    text-align: center;
+    color: #1a1a1a;
+    line-height: 1;
+    font-size: 14px;
+  }
+  
+  .cdx-checklist__item-text {
+    flex-grow: 1;
+    outline: none;
+    color: #e5e5e5;
+  }
+  
+  .cdx-checklist__item--checked .cdx-checklist__item-text {
+    text-decoration: line-through;
+    color: #888;
+  }
       `}</style>
     </div>
   );
