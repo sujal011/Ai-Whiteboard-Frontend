@@ -180,184 +180,7 @@ const App = () => {
   
 
   return (
-    // <>
-      
-
-    //   <div style={{ 
-    //     width: '100vw', 
-    //     height: '100vh', 
-    //     position: 'relative', 
-    //     backgroundColor: '#1a1a1a',
-    //     overflow: 'hidden'
-    //   }}>
-        
-        
-        
-    //     {/* Excalidraw Canvas */}
-    //     <div style={{ 
-    //       width: '100%', 
-    //       height: 'calc(100% - 0px)',
-    //       overflow: 'hidden'
-    //     }}>
-       
-        
-    //       <Excalidraw
-    //       excalidrawAPI={(api)=>setExcalidrawAPI(api)}
-    //         // initialData={{
-    //         //   elements: convertToExcalidrawElements([
-    //         //     {
-    //         //        "type":"diamond",
-    //         //        "x":100,
-    //         //        "y":100,
-    //         //        "label":{
-    //         //           "text":"apple",
-    //         //           "wrapText":"wrap",
-    //         //           "fontSize":14,
-    //         //           "fontName":"Arial"
-    //         //        }
-    //         //     },
-    //         //     {
-    //         //        "type":"rectangle",
-    //         //        "x":300,
-    //         //        "y":290,
-    //         //        "width":200,
-    //         //        "height":100,
-    //         //        "label":{
-    //         //           "text":"pieapple",
-    //         //           "wrapText":"wrap",
-    //         //           "fontSize":14,
-    //         //           "fontName":"Arial"
-    //         //        }
-    //         //     }
-    //         //  ]),
-    //         //   appState: { 
-    //         //     theme: "dark",
-    //         //     gridColor: "#2d2d2d"
-    //         //   },
-    //         //   scrollToContent: true,
-    //         // }}
-    //         theme="dark"
-    //         gridModeEnabled
-    //         renderTopRightUI={() => {
-    //           return (
-    //             <>
-    //             <button
-    //               style={{
-    //                 background: "#70b1ec",
-    //                 border: "none",
-    //                 color: "#fff",
-    //                 width: "max-content",
-    //                 fontWeight: "bold",
-    //               }}
-    //               onClick={handleCalculate}
-    //               >
-    //               Run Ai
-    //             </button>
-    //             <button
-    //               style={{
-    //                 background: "#70b1ec",
-    //                 border: "none",
-    //                 color: "#fff",
-    //                 width: "max-content",
-    //                 fontWeight: "bold",
-    //               }}
-    //               onClick={()=>{
-    //                 console.log(excalidrawAPI.getSceneElements());
-                    
-    //               }}
-    //               >
-    //               get elements
-    //             </button>
-    //               </>
-    //              );
-    //             }}
-    //       />
-    //     </div>
-
-    //     {/* Floating Chat Interface */}
-    //   <div 
-    //     className={`absolute transition-transform duration-300 ease-in-out ${
-    //       isChatVisible ? 'translate-y-0' : 'translate-y-full'
-    //     }`}
-    //     style={{
-    //       bottom: '20px',
-    //       left: '50%',
-    //       transform: `translateX(-50%) ${isChatVisible ? 'translateY(0)' : 'translateY(100%)'}`,
-    //       width: '90%',
-    //       maxWidth: '800px',
-    //       backgroundColor: '#1e1e1e',
-    //       borderRadius: '12px',
-    //       boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 0, 0, 0.5)',
-    //       border: '1px solid #2d2d2d',
-    //       padding: '16px',
-    //       zIndex: 1000,
-    //     }}
-    //   >
-    //     <div className="h-full flex flex-col">
-    //       {/* Title */}
-    //       <div className="mb-2 flex justify-between items-center">
-    //         <div>
-    //           <h3 className="text-lg font-semibold text-gray-200">AI Drawing Assistant</h3>
-    //           <p className="text-sm text-gray-400">Describe what you want to draw, and I'll help create it</p>
-    //         </div>
-    //       </div>
-
-    //       {/* Chat Form */}
-    //       <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-2">
-    //         <div className="relative flex-1">
-    //           <textarea
-    //             value={prompt}
-    //             onChange={(e) => setPrompt(e.target.value)}
-    //             placeholder="Try 'Draw a flowchart showing user authentication process'"
-    //             className="w-full px-4 py-2 text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none placeholder-gray-500 border border-gray-700 bg-[#2d2d2d]"
-    //             style={{
-    //               height: '70px',
-    //               maxHeight: '70px'
-    //             }}
-    //             disabled={isLoading}
-    //           />
-    //           <button
-    //             type="submit"
-    //             disabled={isLoading}
-    //             className="absolute bottom-2 right-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
-    //           >
-    //             {isLoading ? (
-    //               <Loader2 className="w-5 h-5 animate-spin" />
-    //             ) : (
-    //               <Send className="w-5 h-5" />
-    //             )}
-    //           </button>
-    //         </div>
-
-    //         {/* Quick Prompts */}
-    //         <div className="flex gap-2 flex-wrap">
-    //           <button
-    //             type="button"
-    //             onClick={() => setPrompt("Draw a flowchart for user registration")}
-    //             className="px-3 py-1 text-sm bg-gray-800 text-gray-300 rounded-full hover:bg-gray-700 transition-colors border border-gray-700"
-    //           >
-    //             User Registration Flowchart
-    //           </button>
-    //           <button
-    //             type="button"
-    //             onClick={() => setPrompt("Create a mind map for project planning")}
-    //             className="px-3 py-1 text-sm bg-gray-800 text-gray-300 rounded-full hover:bg-gray-700 transition-colors border border-gray-700"
-    //           >
-    //             Project Planning Mind Map
-    //           </button>
-    //           <button
-    //             type="button"
-    //             onClick={() => setPrompt("Design a system architecture diagram")}
-    //             className="px-3 py-1 text-sm bg-gray-800 text-gray-300 rounded-full hover:bg-gray-700 transition-colors border border-gray-700"
-    //           >
-    //             System Architecture
-    //           </button>
-    //         </div>
-    //       </form>
-    //     </div>
-    //   </div>
-    //   </div>
-    // </>
+    
     <div className="flex h-screen w-screen bg-[#1a1a1a]">
       {/* Main Excalidraw Section - Dynamic width based on editor state */}
       <div className={`${isEditorOpen ? 'w-[70%]' : 'w-[95%]'} h-full relative transition-all duration-300 ease-in-out`}>
@@ -368,22 +191,12 @@ const App = () => {
             theme="dark"
             gridModeEnabled
             renderTopRightUI={() => (
-              <>
                 <button
                   className="bg-[#70b1ec] border-none text-white w-max font-bold mr-2 px-3 py-1 rounded"
                   onClick={handleCalculate}
                 >
                   Run AI
                 </button>
-                <button
-                  className="bg-[#70b1ec] border-none text-white w-max font-bold mr-2 px-3 py-1 rounded"
-                  onClick={() => {
-                    getSelectedElements();
-                  }}
-                >
-                  Get Elements
-                </button>
-              </>
             )}
           />
         </div>
