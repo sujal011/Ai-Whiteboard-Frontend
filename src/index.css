@@ -29,3 +29,50 @@ textarea {
   background: #ffb7b7; /* Background color for selected text */
   color: #000; /* Text color for selected text */
 }
+
+.custom-styles .excalidraw {
+  --color-primary: #3498db;
+  --color-primary-darker: #2980b9;
+  --color-primary-darkest: #2c3e50;
+  --color-primary-light: #ebf5fb;
+  --color-primary-light-darker: #d6eaf8;
+  --color-primary-hover: #2980b9;
+
+  --default-bg-color: #f9f9f9;
+  --text-primary-color: #2c3e50;
+
+  --button-gray-1: #ecf0f1;
+  --button-gray-2: #bdc3c7;
+  --button-gray-3: #95a5a6;
+
+  --focus-highlight-color: #e74c3c;
+  --color-selection: #e67e22;
+
+  --island-bg-color: #ffffff;
+
+  --shadow-island: 0px 0px 10px rgba(0, 0, 0, 0.1);
+
+  --color-warning: #f1c40f;
+  --color-success: #2ecc71;
+  --color-danger: #e74c3c;
+
+  --border-radius-md: 0.5rem;
+  --border-radius-lg: 0.75rem;
+
+  &.theme--dark {
+    --default-bg-color: #2c3e50;
+    --text-primary-color: #ecf0f1;
+    --island-bg-color: #34495e;
+    
+    --color-primary: #3498db;
+    --color-primary-darker: #2980b9;
+    --color-primary-darkest: #1f618d;
+    
+    --button-gray-1: #465a6b;
+    --button-gray-2: #5d6d7e;
+    --button-gray-3: #7f8c8d;
+    
+    --focus-highlight-color: #e74c3c;
+    --color-selection: #d35400;
+}
+}

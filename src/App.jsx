@@ -184,12 +184,16 @@ const App = () => {
     <div className="flex h-screen w-screen bg-[#1a1a1a]">
       {/* Main Excalidraw Section - Dynamic width based on editor state */}
       <div className={`${isEditorOpen ? 'w-[70%]' : 'w-[95%]'} h-full relative transition-all duration-300 ease-in-out`}>
-        <div className="w-full h-full overflow-hidden">
+        <div className="w-full h-full overflow-hidden custom-styles">
           <Excalidraw
-          
+          // initialData={{
+          //   appState:{
+          //     viewBackgroundColor:"#fffce8"
+          //   }
+          // }}
             excalidrawAPI={(api) => setExcalidrawAPI(api)}
-            theme="dark"
-            gridModeEnabled
+            // theme="dark"
+            // gridModeEnabled
             renderTopRightUI={() => (
                 <button
                   className="bg-[#70b1ec] border-none text-white w-max font-bold mr-2 px-3 py-1 rounded"
