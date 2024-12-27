@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Excalidraw, convertToExcalidrawElements, exportToCanvas } from "@excalidraw/excalidraw";
-import { Send, Loader2, PanelRightClose, PanelRight } from "lucide-react";
+import { Send, Loader2, PanelLeftCloseIcon, PanelRightIcon } from "lucide-react";
 import { parseMermaidToExcalidraw } from '@excalidraw/mermaid-to-excalidraw';
 import EditorComponent from './Componets/EditorComp';
+
+const customTheme = {
+  background: '#ffffff',
+  gridColor: '#e0e0e0',
+  gridSize: 20,
+  strokeColor: '#000000',
+  textColor: '#000000',
+  fontFamily: 1, // Virgil
+  fontSize: 20,
+};
 
 const App = () => {
   const [prompt, setPrompt] = useState('');
@@ -180,15 +190,40 @@ const App = () => {
   
 
   return (
-    
     <div className="flex h-screen w-screen bg-[#1a1a1a]">
+      {/* Editor.js Section - Collapsible */}
+      <div 
+        className={`
+          h-full border-r border-gray-700 transition-all duration-300 ease-in-out
+          ${isEditorOpen ? 'w-[30%] opacity-100' : 'w-[0%] opacity-0'}
+        `}
+      >
+        {isEditorOpen && <EditorComponent />}
+      </div>
+
+      {/* Toggle Button */}
+      <button
+        onClick={() => setIsEditorOpen(!isEditorOpen)}
+        className="absolute left-0 top-1/2 transform -translate-y-1/2 z-50 bg-[#1e1e1e] text-gray-200 p-2 rounded-r-md border-r border-t border-b border-gray-700 hover:bg-[#2d2d2d] transition-colors"
+      >
+        {isEditorOpen ? (
+          <PanelLeftCloseIcon className="w-5 h-5" />
+        ) : (
+          <PanelRightIcon className="w-5 h-5" />
+        )}
+      </button>
+
       {/* Main Excalidraw Section - Dynamic width based on editor state */}
       <div className={`${isEditorOpen ? 'w-[70%]' : 'w-[95%]'} h-full relative transition-all duration-300 ease-in-out`}>
-        <div className="w-full h-full overflow-hidden">
+        <div className="w-full h-full overflow-hidden custom-styles">
           <Excalidraw
-          
+          initialData={{
+            appState:{
+              zenModeEnabled: true,
+              viewBackgroundColor:"#fffce8"
+            }
+          }}
             excalidrawAPI={(api) => setExcalidrawAPI(api)}
-            theme="dark"
             gridModeEnabled
             renderTopRightUI={() => (
                 <button
@@ -283,28 +318,6 @@ const App = () => {
           </form>
         </div>
       </div>
-      </div>
-
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsEditorOpen(!isEditorOpen)}
-        className="absolute right-0 top-1/2 transform -translate-y-1/2 z-50 bg-[#1e1e1e] text-gray-200 p-2 rounded-l-md border-l border-t border-b border-gray-700 hover:bg-[#2d2d2d] transition-colors"
-      >
-        {isEditorOpen ? (
-          <PanelRightClose className="w-5 h-5" />
-        ) : (
-          <PanelRight className="w-5 h-5" />
-        )}
-      </button>
-
-      {/* Editor.js Section - Collapsible */}
-      <div 
-        className={`
-          h-full border-l border-gray-700 transition-all duration-300 ease-in-out
-          ${isEditorOpen ? 'w-[30%] opacity-100' : 'w-[0%] opacity-0'}
-        `}
-      >
-        {isEditorOpen && <EditorComponent />}
       </div>
     </div>
   );
