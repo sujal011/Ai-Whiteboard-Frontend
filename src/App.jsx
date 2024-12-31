@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Excalidraw, convertToExcalidrawElements, exportToCanvas } from "@excalidraw/excalidraw";
 import { Send, Loader2, PanelRightClose, PanelRight } from "lucide-react";
 import { parseMermaidToExcalidraw } from '@excalidraw/mermaid-to-excalidraw';
 import EditorComponent from './Componets/EditorComp';
-import { parseLatexToText } from './utils';
+// import { parseLatexToText } from './utils';
 
 const App = () => {
   const [prompt, setPrompt] = useState('');
