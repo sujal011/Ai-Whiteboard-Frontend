@@ -3,6 +3,7 @@ import { Excalidraw, convertToExcalidrawElements, exportToCanvas } from "@excali
 import { Send, Loader2, PanelRightClose, PanelRight } from "lucide-react";
 import { parseMermaidToExcalidraw } from '@excalidraw/mermaid-to-excalidraw';
 import EditorComponent from './Componets/EditorComp';
+import { parseLatexToText } from './utils';
 
 const App = () => {
   const [prompt, setPrompt] = useState('');
@@ -112,33 +113,47 @@ const App = () => {
           }
       });
         const {result,expr}=resp.data[0];
+        const steps = resp.data[0].steps;
+        
         const curElements = excalidrawAPI.getSceneElements();
         const xPos = curElements[curElements.length-1].x
         const xWidth = curElements[curElements.length-1].width
         const yPos = curElements[curElements.length-1].y
         const yHeight = curElements[curElements.length-1].height
-        const elements=convertToExcalidrawElements([
-          {
+
+        const elementsTobeUpdated=[{
+          type: "text",
+          x: xPos+xWidth,
+          y: yPos+yHeight,
+          width: 1000,
+          height: 300,
+          text: `Expression : ${expr}`,
+          fontSize: 20,
+          strokeColor:"#008000"
+        },
+        {
+          type: "text",
+          x: xPos+xWidth,
+          y: yPos+40+yHeight,
+          width: 500,
+          height: 300,
+          text: `Answer : ${result}`,
+          fontSize: 20,
+          strokeColor:"#008000"
+        },]
+        if(steps){
+          elementsTobeUpdated.push({
             type: "text",
             x: xPos+xWidth,
-            y: yPos+yHeight,
-            width: 1000,
-            height: 300,
-            text: `Expression : ${expr}`,
-            fontSize: 20,
-            strokeColor:"#008000"
-          },
-          {
-            type: "text",
-            x: xPos+xWidth,
-            y: yPos+40+yHeight,
+            y: yPos+80+yHeight,
             width: 500,
             height: 300,
-            text: `Answer : ${result}`,
+            text: `steps : \n${steps}`,
             fontSize: 20,
             strokeColor:"#008000"
-          }
-        ]);
+          })
+        }
+        const elements=convertToExcalidrawElements(elementsTobeUpdated);
         updateElements(elements)
       }
     } catch (error) {

@@ -135,3 +135,16 @@ export const parseMarkdownToEditorJS = (markdown) => {
     
     return blocks;
   };
+
+export const parseLatexToText = (latexString) => {
+    return latexString
+    .replace(/\\sqrt\{([^}]+)\}/g, "√($1)") // Replace \sqrt{...} with √(...)
+    .replace(/\^2/g, "²") // Replace ^2 with superscript 2
+    .replace(/\\text\{([^}]+)\}/g, "$1") // Remove \text{}
+    .replace(/\s*h\s*=\s*/g, "\nh = ") // Add line breaks before "h ="
+    .replace(/\s*Taking the square root of both sides:/, "\nTaking the square root of both sides:") // Add a break before explanation
+    .replace(/(\d+)\s*\+\s*(\d+)/g, "$1 + $2") // Ensure spaces around additions
+    .replace(/\s+/g, " ") // Normalize spaces
+    .trim();
+  };
+  
