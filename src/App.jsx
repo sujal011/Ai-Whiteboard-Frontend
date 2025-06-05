@@ -223,19 +223,19 @@ const App = () => {
       const cleanedDefinition = diagramDefinition.trim();
       
       // Validate that it starts with a valid diagram type
-      const validDiagramTypes = [
-        'flowchart', 'sequenceDiagram', 'classDiagram',
-        'stateDiagram', 'erDiagram', 'gantt', 'pie', 'journey',
-        'mindmap', 'xychart-beta', 'gitGraph'
-      ];
+      // const validDiagramTypes = [
+      //   'flowchart', 'sequenceDiagram', 'classDiagram',
+      //   'stateDiagram', 'erDiagram', 'gantt', 'pie', 'journey',
+      //   'mindmap', 'xychart-beta', 'gitGraph'
+      // ];
       
-      const startsWithValidType = validDiagramTypes.some(type => 
-        cleanedDefinition.toLowerCase().startsWith(type)
-      );
+      // const startsWithValidType = validDiagramTypes.some(type => 
+      //   cleanedDefinition.toLowerCase().startsWith(type)
+      // );
       
-      if (!startsWithValidType) {
-        throw new Error('Invalid diagram type. Please try again with a different prompt.');
-      }
+      // if (!startsWithValidType) {
+      //   throw new Error('Invalid diagram type. Please try again with a different prompt.');
+      // }
 
       const { elements, files } = await parseMermaidToExcalidraw(cleanedDefinition);
       
