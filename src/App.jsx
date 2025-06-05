@@ -103,6 +103,7 @@ const App = () => {
 
       if (resp) {
         console.log('Responnse: ',resp);
+        if(resp.data.length > 0 ){
         resp.data.forEach((data) => {
           if (data.assign === true) {
               // dict_of_vars[resp.result] = resp.answer;
@@ -111,7 +112,8 @@ const App = () => {
                   [data.expr]: data.result
               });
           }
-      });
+      })
+        };
         const {result,expr}=resp.data[0];
         const steps = resp.data[0].steps;
         
