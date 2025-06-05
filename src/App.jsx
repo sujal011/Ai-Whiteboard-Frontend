@@ -114,7 +114,8 @@ const App = () => {
           }
       })
         };
-        const {result,expr}=resp.data[0];
+        if(resp.data.length > 0 ){
+          const {result,expr}=resp.data[0];
         const steps = resp.data[0].steps;
         
         const curElements = excalidrawAPI.getSceneElements();
@@ -157,6 +158,8 @@ const App = () => {
         }
         const elements=convertToExcalidrawElements(elementsTobeUpdated);
         updateElements(elements)
+        }
+        
       }
     } catch (error) {
       console.error("Error fetching data from backend:", error);
