@@ -1,14 +1,35 @@
 export const parseMarkdownToEditorJS = (markdown) => {
+    if (!markdown) {
+      console.error('No markdown content provided');
+      return [];
+    }
+
+    // Handle the case where the entire content is a code block
+    const codeBlockMatch = markdown.match(/^```(\w*)\n([\s\S]*?)```$/);
+    if (codeBlockMatch) {
+      return [{
+        type: 'code',
+        data: {
+          code: codeBlockMatch[2].trim(),
+          language: codeBlockMatch[1] || ''
+        }
+      }];
+    }
+
     // Split content into lines
     const lines = markdown.split('\n');
     const blocks = [];
     let codeBlock = null;
+    let currentList = null;
+    let currentChecklist = null;
+    let currentOrderedList = null;
+    let currentBlockquote = null;
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
-      // Skip empty lines
-      if (!line && !codeBlock) continue;
+      // Skip empty lines unless we're in a special block
+      if (!line && !codeBlock && !currentBlockquote) continue;
       
       // Handle code blocks
       if (line.startsWith('```')) {
@@ -17,13 +38,16 @@ export const parseMarkdownToEditorJS = (markdown) => {
           blocks.push({
             type: 'code',
             data: {
-              code: codeBlock.code.join('\n')
+              code: codeBlock.code.join('\n'),
+              language: codeBlock.language || ''
             }
           });
           codeBlock = null;
         } else {
           // Start of code block
+          const language = line.slice(3).trim();
           codeBlock = {
+            language,
             code: []
           };
         }
@@ -34,10 +58,61 @@ export const parseMarkdownToEditorJS = (markdown) => {
         codeBlock.code.push(line);
         continue;
       }
+
+      // Handle blockquotes
+      if (line.startsWith('>')) {
+        if (!currentBlockquote) {
+          currentBlockquote = [];
+        }
+        currentBlockquote.push(line.slice(1).trim());
+        continue;
+      } else if (currentBlockquote) {
+        blocks.push({
+          type: 'paragraph',
+          data: {
+            text: currentBlockquote.join('\n'),
+            style: 'blockquote'
+          }
+        });
+        currentBlockquote = null;
+      }
       
       // Handle headers
       const headerMatch = line.match(/^(#{1,6})\s(.+)$/);
       if (headerMatch) {
+        // Close any open lists before starting a header
+        if (currentList || currentChecklist || currentOrderedList) {
+          if (currentList) {
+            blocks.push({
+              type: 'list',
+              data: {
+                style: 'unordered',
+                items: currentList
+              }
+            });
+            currentList = null;
+          }
+          if (currentChecklist) {
+            blocks.push({
+              type: 'checklist',
+              data: {
+                items: currentChecklist
+              }
+            });
+            currentChecklist = null;
+          }
+          if (currentOrderedList) {
+            blocks.push({
+              type: 'list',
+              data: {
+                style: 'ordered',
+                items: currentOrderedList
+              }
+            });
+            currentOrderedList = null;
+          }
+        }
+
         blocks.push({
           type: 'header',
           data: {
@@ -51,84 +126,128 @@ export const parseMarkdownToEditorJS = (markdown) => {
       // Handle checklists
       const checklistMatch = line.match(/^[-*]\s\[([ x])\]\s(.+)$/);
       if (checklistMatch) {
-        const items = [];
-        while (i < lines.length) {
-          const currentLine = lines[i].trim();
-          const match = currentLine.match(/^[-*]\s\[([ x])\]\s(.+)$/);
-          if (!match) break;
-          
-          items.push({
-            text: match[2],
-            checked: match[1] === 'x'
-          });
-          i++;
+        if (!currentChecklist) {
+          currentChecklist = [];
         }
-        i--; // Adjust index since we've looked ahead
-        
+        currentChecklist.push({
+          text: checklistMatch[2],
+          checked: checklistMatch[1] === 'x'
+        });
+        continue;
+      } else if (currentChecklist) {
         blocks.push({
           type: 'checklist',
           data: {
-            items
+            items: currentChecklist
           }
         });
-        continue;
+        currentChecklist = null;
       }
       
       // Handle unordered lists
-      if (line.match(/^[-*]\s(.+)$/)) {
-        const items = [];
-        while (i < lines.length && lines[i].trim().match(/^[-*]\s(.+)$/)) {
-          items.push(lines[i].trim().replace(/^[-*]\s/, ''));
-          i++;
+      const unorderedMatch = line.match(/^[-*]\s(.+)$/);
+      if (unorderedMatch) {
+        if (!currentList) {
+          currentList = [];
         }
-        i--; // Adjust index since we've looked ahead
-        
+        currentList.push(unorderedMatch[1]);
+        continue;
+      } else if (currentList) {
         blocks.push({
           type: 'list',
           data: {
             style: 'unordered',
-            items
+            items: currentList
           }
         });
-        continue;
+        currentList = null;
       }
       
       // Handle ordered lists
-      if (line.match(/^\d+\.\s(.+)$/)) {
-        const items = [];
-        while (i < lines.length && lines[i].trim().match(/^\d+\.\s(.+)$/)) {
-          items.push(lines[i].trim().replace(/^\d+\.\s/, ''));
-          i++;
+      const orderedMatch = line.match(/^\d+\.\s(.+)$/);
+      if (orderedMatch) {
+        if (!currentOrderedList) {
+          currentOrderedList = [];
         }
-        i--; // Adjust index since we've looked ahead
-        
+        currentOrderedList.push(orderedMatch[1]);
+        continue;
+      } else if (currentOrderedList) {
         blocks.push({
           type: 'list',
           data: {
             style: 'ordered',
-            items
+            items: currentOrderedList
           }
         });
-        continue;
+        currentOrderedList = null;
       }
       
-      // Handle inline code
-      if (line.includes('`')) {
-        const text = line.replace(/`([^`]+)`/g, '<code>$1</code>');
+      // Handle horizontal rules
+      if (line.match(/^[-*_]{3,}$/)) {
         blocks.push({
           type: 'paragraph',
           data: {
-            text
+            text: '---',
+            style: 'horizontal-rule'
           }
         });
         continue;
       }
       
-      // Default to paragraph
+      // Handle inline formatting
+      let text = line;
+      if (text.includes('`') || text.includes('*') || text.includes('**') || text.includes('>')) {
+        // Replace markdown formatting with HTML
+        text = text
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      }
+      
+      // Default to paragraph if no other formatting matches
+      if (text) {
+        blocks.push({
+          type: 'paragraph',
+          data: {
+            text: text
+          }
+        });
+      }
+    }
+    
+    // Handle any remaining open blocks
+    if (currentList) {
+      blocks.push({
+        type: 'list',
+        data: {
+          style: 'unordered',
+          items: currentList
+        }
+      });
+    }
+    if (currentChecklist) {
+      blocks.push({
+        type: 'checklist',
+        data: {
+          items: currentChecklist
+        }
+      });
+    }
+    if (currentOrderedList) {
+      blocks.push({
+        type: 'list',
+        data: {
+          style: 'ordered',
+          items: currentOrderedList
+        }
+      });
+    }
+    if (currentBlockquote) {
       blocks.push({
         type: 'paragraph',
         data: {
-          text: line
+          text: currentBlockquote.join('\n'),
+          style: 'blockquote'
         }
       });
     }

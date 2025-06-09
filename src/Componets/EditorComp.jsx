@@ -7,6 +7,7 @@ import CodeTool from '@editorjs/code';
 import InlineCode from '@editorjs/inline-code';
 import { Sparkles, Save, FileDown, FileUp } from 'lucide-react';
 import { parseMarkdownToEditorJS } from '../utils';
+import toast from 'react-hot-toast';
 
 const EditorComponent = () => {
   const editorRef = useRef(null);
@@ -98,24 +99,63 @@ const EditorComponent = () => {
         }),
       });
       
-      if (response.ok) {
-        const { result } = await response.json();
-        
-        // Convert markdown to EditorJS blocks
-        const blocks = parseMarkdownToEditorJS(result);
+      console.log('Raw API Response:', response);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error('API Error Response:', errorData);
+        throw new Error(errorData?.detail || `API request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Parsed API Response:', data);
+      
+      if (!data || !data.result) {
+        console.error('Invalid API response structure:', data);
+        throw new Error('Invalid response from AI service');
+      }
+
+      // Log the markdown content before parsing
+      console.log('Markdown content to parse:', data.result);
+
+      // Convert markdown to EditorJS blocks
+      const blocks = parseMarkdownToEditorJS(data.result);
+      console.log('Generated blocks:', blocks);
+      
+      if (!blocks) {
+        console.error('No blocks generated from markdown:', data.result);
+        throw new Error('Failed to process AI response');
+      }
+
+      // Clear current selection
+      setSelectedText('');
+
+      // Insert blocks at the current cursor position or at the end
+      try {
+        const currentBlockIndex = ejInstance.current.blocks.getCurrentBlockIndex();
+        console.log('Current block index:', currentBlockIndex);
         
         // Insert each block
         for (const block of blocks) {
+          console.log('Inserting block:', block);
           await ejInstance.current.blocks.insert(
             block.type,
-            block.data
+            block.data,
+            {}, // config
+            currentBlockIndex >= 0 ? currentBlockIndex + 1 : undefined // insert after current block or at end
           );
         }
         
-        setSelectedText('');
+        // Save the editor content after insertion
+        await saveContent();
+        toast.success('Answer generated successfully!');
+      } catch (insertError) {
+        console.error('Error inserting blocks:', insertError);
+        throw new Error('Failed to insert content into editor');
       }
     } catch (error) {
       console.error('Failed to enhance text:', error);
+      toast.error(error.message || 'Failed to enhance text. Please try again.');
     } finally {
       setIsProcessing(false);
     }
