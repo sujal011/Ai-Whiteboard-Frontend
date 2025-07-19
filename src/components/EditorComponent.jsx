@@ -1,4 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useSelection } from '../hooks/useSelection';
+import { useAsyncRequest } from '../hooks/useAsyncRequest';
 import EditorJS from '@editorjs/editorjs';
 import Header from '@editorjs/header';
 import List from '@editorjs/list';
@@ -6,23 +9,30 @@ import Checklist from '@editorjs/checklist';
 import CodeTool from '@editorjs/code';
 import InlineCode from '@editorjs/inline-code';
 import { Sparkles, Save, FileDown, FileUp } from 'lucide-react';
-import { parseMarkdownToEditorJS } from '../utils';
+import { parseMarkdownToEditorJS } from '../utils/utils';
 import toast from 'react-hot-toast';
 
+/**
+ * EditorComponent provides a rich text editor with AI enhancement and markdown export.
+ */
 const EditorComponent = () => {
   const editorRef = useRef(null);
   const ejInstance = useRef(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedText, setSelectedText] = useState('');
+  const selectedText = useSelection();
   const backendURL = import.meta.env.VITE_API_URL;
 
+  const [editorContent, setEditorContent] = useLocalStorage('editor-content', {});
+
+  /**
+   * Saves the current editor content to localStorage.
+   */
   const saveContent = async () => {
     if (ejInstance.current) {
       setIsSaving(true);
       try {
         const content = await ejInstance.current.save();
-        localStorage.setItem('editor-content', JSON.stringify(content));
+        setEditorContent(content);
         setTimeout(() => setIsSaving(false), 800);
       } catch (error) {
         console.error('Failed to save content:', error);
@@ -31,11 +41,14 @@ const EditorComponent = () => {
     }
   };
 
-  const loadSavedContent = () => {
-    const saved = localStorage.getItem('editor-content');
-    return saved ? JSON.parse(saved) : {};
-  };
+  /**
+   * Loads saved content from localStorage.
+   */
+  const loadSavedContent = () => editorContent;
 
+  /**
+   * Exports the current editor content as a markdown file.
+   */
   const exportAsMarkdown = async () => {
     if (ejInstance.current) {
       const content = await ejInstance.current.save();
@@ -72,110 +85,57 @@ const EditorComponent = () => {
     }
   };
 
-  const handleTextSelection = () => {
-    const selection = window.getSelection();
-    const text = selection.toString().trim();
-    if (text) {
-      setSelectedText(text);
-    }
-  };
-
+  const { execute: executeAI, loading: isProcessing } = useAsyncRequest();
   const enhanceWithAI = async () => {
     if (!selectedText) {
       console.log('No text selected');
       return;
     }
-  
-    setIsProcessing(true);
-    
-    try {
+    await executeAI(async () => {
       const response = await fetch(`${backendURL}/ask-ai`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          question: selectedText
-        }),
+        body: JSON.stringify({ question: selectedText }),
       });
-      
-      console.log('Raw API Response:', response);
-      
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        console.error('API Error Response:', errorData);
         throw new Error(errorData?.detail || `API request failed with status ${response.status}`);
       }
-
       const data = await response.json();
-      console.log('Parsed API Response:', data);
-      
       if (!data || !data.result) {
-        console.error('Invalid API response structure:', data);
         throw new Error('Invalid response from AI service');
       }
-
-      // Log the markdown content before parsing
-      console.log('Markdown content to parse:', data.result);
-
-      // Convert markdown to EditorJS blocks
       const blocks = parseMarkdownToEditorJS(data.result);
-      console.log('Generated blocks:', blocks);
-      
       if (!blocks) {
-        console.error('No blocks generated from markdown:', data.result);
         throw new Error('Failed to process AI response');
       }
-
-      // Clear current selection
-      setSelectedText('');
-
       // Insert blocks at the current cursor position or at the end
-      try {
-        const currentBlockIndex = ejInstance.current.blocks.getCurrentBlockIndex();
-        console.log('Current block index:', currentBlockIndex);
-        
-        // Insert each block
-        for (const block of blocks) {
-          console.log('Inserting block:', block);
-          await ejInstance.current.blocks.insert(
-            block.type,
-            block.data,
-            {}, // config
-            currentBlockIndex >= 0 ? currentBlockIndex + 1 : undefined // insert after current block or at end
-          );
-        }
-        
-        // Save the editor content after insertion
-        await saveContent();
-        toast.success('Answer generated successfully!');
-      } catch (insertError) {
-        console.error('Error inserting blocks:', insertError);
-        throw new Error('Failed to insert content into editor');
+      const currentBlockIndex = ejInstance.current.blocks.getCurrentBlockIndex();
+      for (const block of blocks) {
+        await ejInstance.current.blocks.insert(
+          block.type,
+          block.data,
+          {},
+          currentBlockIndex >= 0 ? currentBlockIndex + 1 : undefined
+        );
       }
-    } catch (error) {
-      console.error('Failed to enhance text:', error);
-      toast.error(error.message || 'Failed to enhance text. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
+      await saveContent();
+      toast.success('Answer generated successfully!');
+    });
   };
 
   useEffect(() => {
     if (!ejInstance.current) {
       initEditor();
     }
-    
-    // Add selection event listener
-    document.addEventListener('selectionchange', handleTextSelection);
     const autoSaveInterval = setInterval(saveContent, 30000);
-    
     return () => {
       if (ejInstance.current) {
         ejInstance.current.destroy();
         ejInstance.current = null;
       }
-      document.removeEventListener('selectionchange', handleTextSelection);
       clearInterval(autoSaveInterval);
     };
   }, []);
