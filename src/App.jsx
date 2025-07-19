@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useExcalidrawAPI } from './hooks/useExcalidrawAPI';
 import { useAsyncRequest } from './hooks/useAsyncRequest';
 import { Excalidraw, convertToExcalidrawElements, exportToCanvas } from "@excalidraw/excalidraw";
@@ -10,6 +10,7 @@ import { BACKEND_URL } from './config';
 import { showSuccessToast, showErrorToast, showInfoToast } from './utils/toastUtils';
 import ChatBox from './components/ChatBox';
 import ExcalidrawBoard from './components/ExcalidrawBoard';
+import ResizableSidebar from './components/ResizableSidebar';
 // import { parseLatexToText } from './utils/utils';
 
 // Default chatbox position (centered at bottom)
@@ -21,11 +22,24 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isEditorOpen, setIsEditorOpen] = useState(true);
+  const [editorWidth, setEditorWidth] = useState(400);
+  const [excalidrawWidth, setExcalidrawWidth] = useState(window.innerWidth - editorWidth);
   const [chatBoxPosition, setChatBoxPosition] = useState(defaultChatBoxPosition);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
+  const [isCalculateLoading, setIsCalculateLoading] = useState(false);
   const backendURL = BACKEND_URL;
   const { excalidrawAPI, setExcalidrawAPI, getSelectedElements, updateElements } = useExcalidrawAPI();
   const { execute: executeAsync, loading: asyncLoading } = useAsyncRequest();
+
+  // Update excalidrawWidth when editorWidth or window size changes
+  useEffect(() => {
+    const handleResize = () => {
+      setExcalidrawWidth(window.innerWidth - (isEditorOpen ? editorWidth : 0));
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [editorWidth, isEditorOpen]);
 
   // --- handleSubmit: Handles prompt submission and diagram generation ---
   const handleSubmit = async (e) => {
@@ -61,104 +75,109 @@ const App = () => {
   };
   // --- handleCalculate: Handles AI calculation on Excalidraw elements ---
   const handleCalculate = async () => {
-    await executeAsync(async () => {
-      if (!excalidrawAPI) {
-        showErrorToast('Drawing board not initialized');
-        return;
-      }
-      const elements = excalidrawAPI.getSceneElements();
-      if (!elements || !elements.length) {
-        showErrorToast('No elements to calculate');
-        return;
-      }
-      const canvas = await exportToCanvas({
-        elements,
-        appState: {
-          ...excalidrawAPI.getAppState(),
-          exportWithDarkMode: true,
-        },
-        files: excalidrawAPI.getFiles(),
-        getDimensions: () => { return {width: window.innerWidth, height: innerHeight}}
-      });
-      const ctx = canvas.getContext("2d");
-      ctx.font = "30px Virgil";
-      const response = await fetch(`${backendURL}/calculate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image: canvas.toDataURL('image/png'),
-          dict_of_vars: dictOfVars
-        }),
-      });
-      const resp = await response.json();
-      if (!response.ok) {
-        if (response.status === 503) {
-          throw new Error('Gemini API is currently overloaded. Please try again in a few moments.');
+    setIsCalculateLoading(true);
+    try {
+      await executeAsync(async () => {
+        if (!excalidrawAPI) {
+          showErrorToast('Drawing board not initialized');
+          return;
         }
-        throw new Error(resp.detail || resp.message || 'Failed to calculate');
-      }
-      if (resp.status === 'success') {
-        if (resp.data.length > 0) {
-          resp.data.forEach((data) => {
-            if (data.assign === true) {
-              setDictOfVars({
-                ...dictOfVars,
-                [data.expr]: data.result
+        const elements = excalidrawAPI.getSceneElements();
+        if (!elements || !elements.length) {
+          showErrorToast('No elements to calculate');
+          return;
+        }
+        const canvas = await exportToCanvas({
+          elements,
+          appState: {
+            ...excalidrawAPI.getAppState(),
+            exportWithDarkMode: true,
+          },
+          files: excalidrawAPI.getFiles(),
+          getDimensions: () => { return {width: window.innerWidth, height: innerHeight}}
+        });
+        const ctx = canvas.getContext("2d");
+        ctx.font = "30px Virgil";
+        const response = await fetch(`${backendURL}/calculate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            image: canvas.toDataURL('image/png'),
+            dict_of_vars: dictOfVars
+          }),
+        });
+        const resp = await response.json();
+        if (!response.ok) {
+          if (response.status === 503) {
+            throw new Error('Gemini API is currently overloaded. Please try again in a few moments.');
+          }
+          throw new Error(resp.detail || resp.message || 'Failed to calculate');
+        }
+        if (resp.status === 'success') {
+          if (resp.data.length > 0) {
+            resp.data.forEach((data) => {
+              if (data.assign === true) {
+                setDictOfVars({
+                  ...dictOfVars,
+                  [data.expr]: data.result
+                });
+              }
+            });
+            const {result, expr} = resp.data[0];
+            const steps = resp.data[0].steps;
+            const curElements = excalidrawAPI.getSceneElements();
+            const xPos = curElements[curElements.length-1].x;
+            const xWidth = curElements[curElements.length-1].width;
+            const yPos = curElements[curElements.length-1].y;
+            const yHeight = curElements[curElements.length-1].height;
+            const elementsTobeUpdated = [
+              {
+                type: "text",
+                x: xPos+xWidth,
+                y: yPos+yHeight,
+                width: 1000,
+                height: 300,
+                text: `Expression : ${expr}`,
+                fontSize: 20,
+                strokeColor:"#008000"
+              },
+              {
+                type: "text",
+                x: xPos+xWidth,
+                y: yPos+40+yHeight,
+                width: 500,
+                height: 300,
+                text: `Answer : ${result}`,
+                fontSize: 20,
+                strokeColor:"#008000"
+              }
+            ];
+            if(steps) {
+              elementsTobeUpdated.push({
+                type: "text",
+                x: xPos+xWidth,
+                y: yPos+80+yHeight,
+                width: 500,
+                height: 300,
+                text: `steps : \n${steps}`,
+                fontSize: 20,
+                strokeColor:"#008000"
               });
             }
-          });
-          const {result, expr} = resp.data[0];
-          const steps = resp.data[0].steps;
-          const curElements = excalidrawAPI.getSceneElements();
-          const xPos = curElements[curElements.length-1].x;
-          const xWidth = curElements[curElements.length-1].width;
-          const yPos = curElements[curElements.length-1].y;
-          const yHeight = curElements[curElements.length-1].height;
-          const elementsTobeUpdated = [
-            {
-              type: "text",
-              x: xPos+xWidth,
-              y: yPos+yHeight,
-              width: 1000,
-              height: 300,
-              text: `Expression : ${expr}`,
-              fontSize: 20,
-              strokeColor:"#008000"
-            },
-            {
-              type: "text",
-              x: xPos+xWidth,
-              y: yPos+40+yHeight,
-              width: 500,
-              height: 300,
-              text: `Answer : ${result}`,
-              fontSize: 20,
-              strokeColor:"#008000"
-            }
-          ];
-          if(steps) {
-            elementsTobeUpdated.push({
-              type: "text",
-              x: xPos+xWidth,
-              y: yPos+80+yHeight,
-              width: 500,
-              height: 300,
-              text: `steps : \n${steps}`,
-              fontSize: 20,
-              strokeColor:"#008000"
-            });
+            const elements = convertToExcalidrawElements(elementsTobeUpdated);
+            updateElements(elements);
+            showSuccessToast('Calculation completed successfully!');
+          } else {
+            showInfoToast('No mathematical expressions found in the image');
           }
-          const elements = convertToExcalidrawElements(elementsTobeUpdated);
-          updateElements(elements);
-          showSuccessToast('Calculation completed successfully!');
-        } else {
-          showInfoToast('No mathematical expressions found in the image');
         }
-      }
-      setPrompt('');
-    });
+        setPrompt('');
+      });
+    } finally {
+      setIsCalculateLoading(false);
+    }
   };
 
   // --- updateScene: Parses Mermaid and updates Excalidraw scene ---
@@ -247,6 +266,8 @@ const App = () => {
         setExcalidrawAPI={setExcalidrawAPI}
         handleCalculate={handleCalculate}
         isEditorOpen={isEditorOpen}
+        isCalculateLoading={isCalculateLoading}
+        width={excalidrawWidth}
       />
       {/* Floating Chat Interface */}
       <ChatBox
@@ -261,26 +282,15 @@ const App = () => {
         onMinimize={() => setIsChatMinimized(true)}
         onRestore={() => setIsChatMinimized(false)}
       />
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsEditorOpen(!isEditorOpen)}
-        className="absolute right-0 top-1/2 transform -translate-y-1/2 z-50 bg-[#1e1e1e] text-gray-200 p-2 rounded-l-md border-l border-t border-b border-gray-700 hover:bg-[#2d2d2d] transition-colors"
+      <ResizableSidebar
+        isOpen={isEditorOpen}
+        onOpen={() => setIsEditorOpen(true)}
+        onClose={() => setIsEditorOpen(false)}
+        width={editorWidth}
+        setWidth={setEditorWidth}
       >
-        {isEditorOpen ? (
-          <PanelRightClose className="w-5 h-5" />
-        ) : (
-          <PanelRight className="w-5 h-5" />
-        )}
-      </button>
-      {/* Editor.js Section - Collapsible */}
-      <div 
-        className={`
-          h-full border-l border-gray-700 transition-all duration-300 ease-in-out
-          ${isEditorOpen ? 'w-[30%] opacity-100' : 'w-[0%] opacity-0'}
-        `}
-      >
-        {isEditorOpen && <EditorComponent />}
-      </div>
+        <EditorComponent />
+      </ResizableSidebar>
     </div>
   );
 };
