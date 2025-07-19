@@ -23,6 +23,7 @@ const App = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(true);
   const [chatBoxPosition, setChatBoxPosition] = useState(defaultChatBoxPosition);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
+  const [isCalculateLoading, setIsCalculateLoading] = useState(false);
   const backendURL = BACKEND_URL;
   const { excalidrawAPI, setExcalidrawAPI, getSelectedElements, updateElements } = useExcalidrawAPI();
   const { execute: executeAsync, loading: asyncLoading } = useAsyncRequest();
@@ -61,104 +62,109 @@ const App = () => {
   };
   // --- handleCalculate: Handles AI calculation on Excalidraw elements ---
   const handleCalculate = async () => {
-    await executeAsync(async () => {
-      if (!excalidrawAPI) {
-        showErrorToast('Drawing board not initialized');
-        return;
-      }
-      const elements = excalidrawAPI.getSceneElements();
-      if (!elements || !elements.length) {
-        showErrorToast('No elements to calculate');
-        return;
-      }
-      const canvas = await exportToCanvas({
-        elements,
-        appState: {
-          ...excalidrawAPI.getAppState(),
-          exportWithDarkMode: true,
-        },
-        files: excalidrawAPI.getFiles(),
-        getDimensions: () => { return {width: window.innerWidth, height: innerHeight}}
-      });
-      const ctx = canvas.getContext("2d");
-      ctx.font = "30px Virgil";
-      const response = await fetch(`${backendURL}/calculate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image: canvas.toDataURL('image/png'),
-          dict_of_vars: dictOfVars
-        }),
-      });
-      const resp = await response.json();
-      if (!response.ok) {
-        if (response.status === 503) {
-          throw new Error('Gemini API is currently overloaded. Please try again in a few moments.');
+    setIsCalculateLoading(true);
+    try {
+      await executeAsync(async () => {
+        if (!excalidrawAPI) {
+          showErrorToast('Drawing board not initialized');
+          return;
         }
-        throw new Error(resp.detail || resp.message || 'Failed to calculate');
-      }
-      if (resp.status === 'success') {
-        if (resp.data.length > 0) {
-          resp.data.forEach((data) => {
-            if (data.assign === true) {
-              setDictOfVars({
-                ...dictOfVars,
-                [data.expr]: data.result
+        const elements = excalidrawAPI.getSceneElements();
+        if (!elements || !elements.length) {
+          showErrorToast('No elements to calculate');
+          return;
+        }
+        const canvas = await exportToCanvas({
+          elements,
+          appState: {
+            ...excalidrawAPI.getAppState(),
+            exportWithDarkMode: true,
+          },
+          files: excalidrawAPI.getFiles(),
+          getDimensions: () => { return {width: window.innerWidth, height: innerHeight}}
+        });
+        const ctx = canvas.getContext("2d");
+        ctx.font = "30px Virgil";
+        const response = await fetch(`${backendURL}/calculate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            image: canvas.toDataURL('image/png'),
+            dict_of_vars: dictOfVars
+          }),
+        });
+        const resp = await response.json();
+        if (!response.ok) {
+          if (response.status === 503) {
+            throw new Error('Gemini API is currently overloaded. Please try again in a few moments.');
+          }
+          throw new Error(resp.detail || resp.message || 'Failed to calculate');
+        }
+        if (resp.status === 'success') {
+          if (resp.data.length > 0) {
+            resp.data.forEach((data) => {
+              if (data.assign === true) {
+                setDictOfVars({
+                  ...dictOfVars,
+                  [data.expr]: data.result
+                });
+              }
+            });
+            const {result, expr} = resp.data[0];
+            const steps = resp.data[0].steps;
+            const curElements = excalidrawAPI.getSceneElements();
+            const xPos = curElements[curElements.length-1].x;
+            const xWidth = curElements[curElements.length-1].width;
+            const yPos = curElements[curElements.length-1].y;
+            const yHeight = curElements[curElements.length-1].height;
+            const elementsTobeUpdated = [
+              {
+                type: "text",
+                x: xPos+xWidth,
+                y: yPos+yHeight,
+                width: 1000,
+                height: 300,
+                text: `Expression : ${expr}`,
+                fontSize: 20,
+                strokeColor:"#008000"
+              },
+              {
+                type: "text",
+                x: xPos+xWidth,
+                y: yPos+40+yHeight,
+                width: 500,
+                height: 300,
+                text: `Answer : ${result}`,
+                fontSize: 20,
+                strokeColor:"#008000"
+              }
+            ];
+            if(steps) {
+              elementsTobeUpdated.push({
+                type: "text",
+                x: xPos+xWidth,
+                y: yPos+80+yHeight,
+                width: 500,
+                height: 300,
+                text: `steps : \n${steps}`,
+                fontSize: 20,
+                strokeColor:"#008000"
               });
             }
-          });
-          const {result, expr} = resp.data[0];
-          const steps = resp.data[0].steps;
-          const curElements = excalidrawAPI.getSceneElements();
-          const xPos = curElements[curElements.length-1].x;
-          const xWidth = curElements[curElements.length-1].width;
-          const yPos = curElements[curElements.length-1].y;
-          const yHeight = curElements[curElements.length-1].height;
-          const elementsTobeUpdated = [
-            {
-              type: "text",
-              x: xPos+xWidth,
-              y: yPos+yHeight,
-              width: 1000,
-              height: 300,
-              text: `Expression : ${expr}`,
-              fontSize: 20,
-              strokeColor:"#008000"
-            },
-            {
-              type: "text",
-              x: xPos+xWidth,
-              y: yPos+40+yHeight,
-              width: 500,
-              height: 300,
-              text: `Answer : ${result}`,
-              fontSize: 20,
-              strokeColor:"#008000"
-            }
-          ];
-          if(steps) {
-            elementsTobeUpdated.push({
-              type: "text",
-              x: xPos+xWidth,
-              y: yPos+80+yHeight,
-              width: 500,
-              height: 300,
-              text: `steps : \n${steps}`,
-              fontSize: 20,
-              strokeColor:"#008000"
-            });
+            const elements = convertToExcalidrawElements(elementsTobeUpdated);
+            updateElements(elements);
+            showSuccessToast('Calculation completed successfully!');
+          } else {
+            showInfoToast('No mathematical expressions found in the image');
           }
-          const elements = convertToExcalidrawElements(elementsTobeUpdated);
-          updateElements(elements);
-          showSuccessToast('Calculation completed successfully!');
-        } else {
-          showInfoToast('No mathematical expressions found in the image');
         }
-      }
-      setPrompt('');
-    });
+        setPrompt('');
+      });
+    } finally {
+      setIsCalculateLoading(false);
+    }
   };
 
   // --- updateScene: Parses Mermaid and updates Excalidraw scene ---
@@ -247,6 +253,7 @@ const App = () => {
         setExcalidrawAPI={setExcalidrawAPI}
         handleCalculate={handleCalculate}
         isEditorOpen={isEditorOpen}
+        isCalculateLoading={isCalculateLoading}
       />
       {/* Floating Chat Interface */}
       <ChatBox
