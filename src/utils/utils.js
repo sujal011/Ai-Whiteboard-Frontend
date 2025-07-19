@@ -1,3 +1,8 @@
+/**
+ * Converts markdown text to EditorJS block format.
+ * @param {string} markdown - The markdown string to convert.
+ * @returns {Array} Array of EditorJS block objects.
+ */
 export const parseMarkdownToEditorJS = (markdown) => {
     if (!markdown) {
       console.error('No markdown content provided');
@@ -255,6 +260,11 @@ export const parseMarkdownToEditorJS = (markdown) => {
     return blocks;
   };
 
+/**
+ * Converts LaTeX string to readable text for display.
+ * @param {string} latexString - The LaTeX string to convert.
+ * @returns {string} The converted readable text.
+ */
 export const parseLatexToText = (latexString) => {
     return latexString
     .replace(/\\sqrt\{([^}]+)\}/g, "√($1)") // Replace \sqrt{...} with √(...)
