@@ -12,12 +12,17 @@ import ChatBox from './components/ChatBox';
 import ExcalidrawBoard from './components/ExcalidrawBoard';
 // import { parseLatexToText } from './utils/utils';
 
+// Default chatbox position (centered at bottom)
+const defaultChatBoxPosition = { top: window.innerHeight - 220, left: window.innerWidth / 2 - 400 };
+
 const App = () => {
   const [prompt, setPrompt] = useState('');
   const [dictOfVars, setDictOfVars] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isEditorOpen, setIsEditorOpen] = useState(true);
+  const [chatBoxPosition, setChatBoxPosition] = useState(defaultChatBoxPosition);
+  const [isChatMinimized, setIsChatMinimized] = useState(false);
   const backendURL = BACKEND_URL;
   const { excalidrawAPI, setExcalidrawAPI, getSelectedElements, updateElements } = useExcalidrawAPI();
   const { execute: executeAsync, loading: asyncLoading } = useAsyncRequest();
@@ -250,6 +255,11 @@ const App = () => {
         isLoading={isLoading || asyncLoading}
         handleSubmit={handleSubmit}
         isChatVisible={isChatVisible}
+        position={chatBoxPosition}
+        setPosition={setChatBoxPosition}
+        isMinimized={isChatMinimized}
+        onMinimize={() => setIsChatMinimized(true)}
+        onRestore={() => setIsChatMinimized(false)}
       />
       {/* Toggle Button */}
       <button
