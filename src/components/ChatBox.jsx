@@ -61,7 +61,7 @@ const ChatBox = ({ prompt, setPrompt, isLoading, handleSubmit, isChatVisible, po
           borderRadius: '12px 12px 0 0',
           boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
           border: '1px solid #2d2d2d',
-          zIndex: 1100,
+          zIndex: 1500,
           cursor: 'default',
           height: CHATBOX_MIN_HEIGHT,
           display: 'flex',
@@ -103,7 +103,7 @@ const ChatBox = ({ prompt, setPrompt, isLoading, handleSubmit, isChatVisible, po
         boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
         border: '1px solid #2d2d2d',
         padding: '0 0 16px 0',
-        zIndex: 1100,
+        zIndex: 1500,
         cursor: 'default',
       }}
     >

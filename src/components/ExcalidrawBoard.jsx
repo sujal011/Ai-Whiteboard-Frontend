@@ -9,9 +9,20 @@ import { Loader2 } from 'lucide-react';
  * @param {function} props.handleCalculate
  * @param {boolean} props.isEditorOpen
  * @param {boolean} props.isCalculateLoading
+ * @param {number} props.width
  */
-const ExcalidrawBoard = ({ setExcalidrawAPI, handleCalculate, isEditorOpen, isCalculateLoading }) => (
-  <div className={`${isEditorOpen ? 'w-[70%]' : 'w-[95%]'} h-full relative transition-all duration-300 ease-in-out`}>
+const ExcalidrawBoard = ({ setExcalidrawAPI, handleCalculate, isEditorOpen, isCalculateLoading, width }) => (
+  <div
+    style={{
+      width: width,
+      height: '100vh',
+      transition: 'width 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+      position: 'relative',
+      background: '#1a1a1a',
+      display: 'flex',
+      flexDirection: 'column',
+    }}
+  >
     <div className="w-full h-full overflow-hidden">
       <Excalidraw
         excalidrawAPI={setExcalidrawAPI}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useExcalidrawAPI } from './hooks/useExcalidrawAPI';
 import { useAsyncRequest } from './hooks/useAsyncRequest';
 import { Excalidraw, convertToExcalidrawElements, exportToCanvas } from "@excalidraw/excalidraw";
@@ -10,6 +10,7 @@ import { BACKEND_URL } from './config';
 import { showSuccessToast, showErrorToast, showInfoToast } from './utils/toastUtils';
 import ChatBox from './components/ChatBox';
 import ExcalidrawBoard from './components/ExcalidrawBoard';
+import ResizableSidebar from './components/ResizableSidebar';
 // import { parseLatexToText } from './utils/utils';
 
 // Default chatbox position (centered at bottom)
@@ -21,12 +22,24 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isEditorOpen, setIsEditorOpen] = useState(true);
+  const [editorWidth, setEditorWidth] = useState(400);
+  const [excalidrawWidth, setExcalidrawWidth] = useState(window.innerWidth - editorWidth);
   const [chatBoxPosition, setChatBoxPosition] = useState(defaultChatBoxPosition);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [isCalculateLoading, setIsCalculateLoading] = useState(false);
   const backendURL = BACKEND_URL;
   const { excalidrawAPI, setExcalidrawAPI, getSelectedElements, updateElements } = useExcalidrawAPI();
   const { execute: executeAsync, loading: asyncLoading } = useAsyncRequest();
+
+  // Update excalidrawWidth when editorWidth or window size changes
+  useEffect(() => {
+    const handleResize = () => {
+      setExcalidrawWidth(window.innerWidth - (isEditorOpen ? editorWidth : 0));
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [editorWidth, isEditorOpen]);
 
   // --- handleSubmit: Handles prompt submission and diagram generation ---
   const handleSubmit = async (e) => {
@@ -254,6 +267,7 @@ const App = () => {
         handleCalculate={handleCalculate}
         isEditorOpen={isEditorOpen}
         isCalculateLoading={isCalculateLoading}
+        width={excalidrawWidth}
       />
       {/* Floating Chat Interface */}
       <ChatBox
@@ -268,26 +282,15 @@ const App = () => {
         onMinimize={() => setIsChatMinimized(true)}
         onRestore={() => setIsChatMinimized(false)}
       />
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsEditorOpen(!isEditorOpen)}
-        className="absolute right-0 top-1/2 transform -translate-y-1/2 z-50 bg-[#1e1e1e] text-gray-200 p-2 rounded-l-md border-l border-t border-b border-gray-700 hover:bg-[#2d2d2d] transition-colors"
+      <ResizableSidebar
+        isOpen={isEditorOpen}
+        onOpen={() => setIsEditorOpen(true)}
+        onClose={() => setIsEditorOpen(false)}
+        width={editorWidth}
+        setWidth={setEditorWidth}
       >
-        {isEditorOpen ? (
-          <PanelRightClose className="w-5 h-5" />
-        ) : (
-          <PanelRight className="w-5 h-5" />
-        )}
-      </button>
-      {/* Editor.js Section - Collapsible */}
-      <div 
-        className={`
-          h-full border-l border-gray-700 transition-all duration-300 ease-in-out
-          ${isEditorOpen ? 'w-[30%] opacity-100' : 'w-[0%] opacity-0'}
-        `}
-      >
-        {isEditorOpen && <EditorComponent />}
-      </div>
+        <EditorComponent />
+      </ResizableSidebar>
     </div>
   );
 };
