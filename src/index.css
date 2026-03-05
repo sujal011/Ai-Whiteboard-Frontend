@@ -2,30 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+:root {
+  --bg-dark: #0f0f10;
+  --card-dark: #1a1a1c;
+  --accent-blue: #3b82f6;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --glass: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
 }
 
-*::-webkit-scrollbar {
-  display: none;
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-.custom-scroll {
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/* Glassmorphism utility */
+.glass-effect {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
 }
 
-.custom-scroll::-webkit-scrollbar {
-  display: none;
+/* Smooth Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-textarea {
-  overflow: auto;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-*::selection {
-  background: #ffb7b7; /* Background color for selected text */
-  color: #000; /* Text color for selected text */
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Interactive elements */
+.hover-scale {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+.active-glow {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+/* Excalidraw Overrides */
+.excalidraw {
+  --color-primary: #3b82f6 !important;
+}
+
+/* Selection */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: #fff;
 }

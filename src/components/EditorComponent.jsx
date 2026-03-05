@@ -8,31 +8,37 @@ import List from '@editorjs/list';
 import Checklist from '@editorjs/checklist';
 import CodeTool from '@editorjs/code';
 import InlineCode from '@editorjs/inline-code';
-import { Sparkles, Save, FileDown, FileUp } from 'lucide-react';
+import { Sparkles, Save, FileDown, FileUp, Loader2 } from 'lucide-react';
 import { parseMarkdownToEditorJS } from '../utils/utils';
 import toast from 'react-hot-toast';
+import { useWorkspace } from '../contexts/WorkspaceContext';
+import { apiFetch } from '../utils/api';
+import DocumentPanel from './DocumentPanel';
 
 /**
  * EditorComponent provides a rich text editor with AI enhancement and markdown export.
  */
 const EditorComponent = () => {
+  const { activeWorkspace, saveWorkspaceData } = useWorkspace();
   const editorRef = useRef(null);
   const ejInstance = useRef(null);
   const [isSaving, setIsSaving] = useState(false);
   const selectedText = useSelection();
-  const backendURL = import.meta.env.VITE_API_URL;
 
-  const [editorContent, setEditorContent] = useLocalStorage('editor-content', {});
+  // Use workspace data if available, otherwise fallback to local storage
+  const [localContent, setLocalContent] = useLocalStorage('editor-content', {});
 
   /**
-   * Saves the current editor content to localStorage.
+   * Saves the current editor content to backend workspace.
    */
-  const saveContent = async () => {
-    if (ejInstance.current) {
+  const handleSave = async () => {
+    if (ejInstance.current && activeWorkspace) {
       setIsSaving(true);
       try {
         const content = await ejInstance.current.save();
-        setEditorContent(content);
+        await saveWorkspaceData({
+          editorjs_data: content
+        });
         setTimeout(() => setIsSaving(false), 800);
       } catch (error) {
         console.error('Failed to save content:', error);
@@ -40,11 +46,6 @@ const EditorComponent = () => {
       }
     }
   };
-
-  /**
-   * Loads saved content from localStorage.
-   */
-  const loadSavedContent = () => editorContent;
 
   /**
    * Exports the current editor content as a markdown file.
@@ -71,7 +72,7 @@ const EditorComponent = () => {
             markdown += '```\n' + block.data.code + '\n```\n\n';
             break;
           default:
-            markdown += block.data.text + '\n\n';
+            markdown += (block.data.text || '') + '\n\n';
         }
       });
 
@@ -79,7 +80,7 @@ const EditorComponent = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'notes.md';
+      a.download = `notes-${activeWorkspace?.name || 'export'}.md`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -87,31 +88,32 @@ const EditorComponent = () => {
 
   const { execute: executeAI, loading: isProcessing } = useAsyncRequest();
   const enhanceWithAI = async () => {
-    if (!selectedText) {
-      console.log('No text selected');
+    if (!selectedText) return;
+    if (!activeWorkspace) {
+      toast.error('Please select or create a workspace first');
       return;
     }
+
     await executeAI(async () => {
-      const response = await fetch(`${backendURL}/ask-ai`, {
+      const response = await apiFetch('/api/chat/ask', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ question: selectedText }),
+        body: JSON.stringify({
+          question: selectedText,
+          workspace_id: activeWorkspace.id
+        }),
       });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.detail || `API request failed with status ${response.status}`);
-      }
+
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || `AI request failed`);
+      }
+
       if (!data || !data.result) {
         throw new Error('Invalid response from AI service');
       }
       const blocks = parseMarkdownToEditorJS(data.result);
-      if (!blocks) {
-        throw new Error('Failed to process AI response');
-      }
-      // Insert blocks at the current cursor position or at the end
+
+      // Insert blocks at the current cursor position
       const currentBlockIndex = ejInstance.current.blocks.getCurrentBlockIndex();
       for (const block of blocks) {
         await ejInstance.current.blocks.insert(
@@ -121,16 +123,26 @@ const EditorComponent = () => {
           currentBlockIndex >= 0 ? currentBlockIndex + 1 : undefined
         );
       }
-      await saveContent();
-      toast.success('Answer generated successfully!');
+      await handleSave();
+      toast.success('AI insights added!');
     });
   };
+
+  // Switch content when workspace changes
+  useEffect(() => {
+    if (ejInstance.current && activeWorkspace) {
+      ejInstance.current.isReady.then(() => {
+        const data = activeWorkspace.editorjs_data || { blocks: [] };
+        ejInstance.current.render(data);
+      });
+    }
+  }, [activeWorkspace?.id]);
 
   useEffect(() => {
     if (!ejInstance.current) {
       initEditor();
     }
-    const autoSaveInterval = setInterval(saveContent, 30000);
+    const autoSaveInterval = setInterval(handleSave, 60000); // Auto-save every minute
     return () => {
       if (ejInstance.current) {
         ejInstance.current.destroy();
@@ -172,8 +184,8 @@ const EditorComponent = () => {
           class: InlineCode
         },
       },
-      placeholder: 'Let\'s write something...',
-      data: loadSavedContent(),
+      placeholder: 'Type something or select text for AI insights from documents...',
+      data: activeWorkspace?.editorjs_data || localContent,
       onReady: () => {
         ejInstance.current = editor;
       },
@@ -186,287 +198,67 @@ const EditorComponent = () => {
 
   return (
     <div className="h-full w-full bg-[#1a1a1a] text-gray-200 flex flex-col">
-      <div className="flex items-center gap-2 p-2 border-b border-gray-700">
+      <div className="flex items-center gap-2 p-3 border-b border-gray-800 bg-[#1e1e1e]">
+        <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mr-auto">Editor</h2>
         <button
-          onClick={saveContent}
-          className={`p-2 rounded hover:bg-gray-700 transition-colors save-button
-            ${isSaving ? 'animate-pulse' : ''}`}
-          title="Save notes"
+          onClick={handleSave}
+          className={`p-2 rounded-lg hover:bg-gray-700 transition-colors save-button bg-[#2d2d2d]
+            ${isSaving ? 'text-blue-400' : 'text-gray-400'}`}
+          title="Save to Cloud"
         >
-          <Save className="w-4 h-4" />
+          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
         </button>
         <button
           onClick={exportAsMarkdown}
-          className="p-2 rounded hover:bg-gray-700 transition-colors"
+          className="p-2 rounded-lg hover:bg-gray-700 transition-colors bg-[#2d2d2d] text-gray-400"
           title="Export as Markdown"
         >
           <FileDown className="w-4 h-4" />
         </button>
+        <div className="w-px h-4 bg-gray-800 mx-1" />
         <button
           onClick={enhanceWithAI}
           disabled={!selectedText || isProcessing}
-          className={`p-2 rounded transition-colors ml-auto
-            ${selectedText ? 'hover:bg-gray-700 text-blue-400' : 'text-gray-500 cursor-not-allowed'}
+          className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-sm font-semibold
+            ${selectedText ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/20' : 'bg-[#2d2d2d] text-gray-600 cursor-not-allowed'}
             ${isProcessing ? 'animate-pulse' : ''}`}
-          title={selectedText ? 'Enhance selected text with AI' : 'Select text to enhance'}
+          title={selectedText ? 'Ask AI about selected text using source documents' : 'Select text to ask AI'}
         >
-          <Sparkles className="w-4 h-4" />
+          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          AI RAG
         </button>
       </div>
-      
-      <div className="flex-1 overflow-y-auto">
-        <div className="editor-container p-4">
-          <div ref={editorRef} className="prose prose-invert max-w-none" />
+
+      <div className="flex-1 overflow-y-auto custom-scroll">
+        <div className="p-6">
+          <DocumentPanel />
+          <div className="editor-container">
+            <div ref={editorRef} className="prose prose-invert max-w-none" />
+          </div>
         </div>
       </div>
-      
-      {/* Existing styles remain the same */}
+
       <style jsx global>{`
-        /* Base Editor Styles */
-        .codex-editor {
-          color: #e5e5e5;
-        }
+        .ce-block__content { max-width: 100% !important; }
+        .ce-toolbar__content { max-width: 100% !important; }
+        .codex-editor { color: #e5e5e5; }
+        .ce-paragraph { font-size: 1.05rem; line-height: 1.7; color: #d1d5db; }
+        .ce-header { color: #f3f4f6; margin-top: 1.5em; margin-bottom: 0.5em; }
+        .ce-toolbar__plus, .ce-toolbar__settings-btn { background-color: #2d2d2d; color: #9ca3af; border-radius: 6px; }
+        .ce-toolbar__plus:hover, .ce-toolbar__settings-btn:hover { background-color: #374151; color: #fff; }
+        .save-button.pending { color: #fbbf24 !important; }
+
+        /* Custom scroll for editor */
+        .editor-container { padding-bottom: 100px; }
         
-        /* Block Spacing */
-        .ce-block {
-          margin: 1.5em 0;
-        }
-        
-        /* Headings */
-        .ce-header {
-          padding: 0.5em 0;
-          margin: 0;
-          line-height: 1.25;
-          font-weight: 600;
-          outline: none;
-        }
-        
-        h1.ce-header {
-          font-size: 2.25em;
-          color: #fff;
-        }
-        
-        h2.ce-header {
-          font-size: 1.875em;
-          color: #f3f4f6;
-        }
-        
-        h3.ce-header {
-          font-size: 1.5em;
-          color: #e5e7eb;
-        }
-        
-        h4.ce-header {
-          font-size: 1.25em;
-          color: #d1d5db;
-        }
-        
-        /* Paragraphs */
-        .ce-paragraph {
-          color: #e5e5e5;
-          line-height: 1.6;
-          font-size: 1.125em;
-        }
-        
-        /* Lists */
-        .cdx-list {
-          margin: 1em 0;
-          padding-left: 40px;
-          color: #e5e5e5;
-        }
-        
-        .cdx-list__item {
-          padding: 0.25em 0;
-          line-height: 1.6;
-        }
-        
-        .cdx-list--unordered {
-          list-style: disc;
-        }
-        
-        .cdx-list--ordered {
-          list-style: decimal;
-        }
+        /* Checklist Styles */
+        .cdx-checklist__item-checkbox { border-color: #4b5563; }
+        .cdx-checklist__item-text { color: #d1d5db; }
+        .cdx-checklist__item--checked .cdx-checklist__item-text { color: #6b7280; }
         
         /* Code Block */
-        .ce-code {
-          background-color: #2d2d2d;
-          padding: 1em;
-          border-radius: 4px;
-          font-family: 'Fira Code', monospace;
-          margin: 1em 0;
-        }
-        
-        .ce-code__textarea {
-          color: #e5e5e5;
-          background-color: transparent;
-          border: none;
-          resize: none;
-          outline: none;
-          min-height: 100px;
-          font-size: 0.875em;
-          line-height: 1.5;
-          width: 100%;
-        }
-        
-        /* Inline Code */
-        .cdx-inline-code {
-          background-color: #2d2d2d;
-          padding: 0.2em 0.4em;
-          border-radius: 3px;
-          font-family: 'Fira Code', monospace;
-          font-size: 0.875em;
-          color: #e5e5e5;
-        }
-        
-        /* Toolbar */
-        .ce-toolbar__content {
-          max-width: 100%;
-          margin: 0;
-        }
-        
-        .ce-toolbar__plus,
-        .ce-toolbar__settings-btn {
-          color: #e5e5e5;
-          background-color: #2d2d2d;
-          border-radius: 4px;
-        }
-        
-        .ce-toolbar__plus:hover,
-        .ce-toolbar__settings-btn:hover {
-          background-color: #404040;
-        }
-        
-        /* Block Content */
-        .ce-block__content {
-          max-width: 100%;
-          margin: 0;
-          background-color: #1a1a1a;
-        }
-        
-        /* Editor Placeholder */
-        .codex-editor--empty .ce-block:first-child .ce-paragraph[data-placeholder]:before {
-          color: #666;
-          font-style: italic;
-        }
-        
-        /* Save Button State */
-        .save-button.pending {
-          color: #fbbf24;
-        }
-        
-        /* Inline Toolbar */
-        .ce-inline-toolbar {
-          background-color: #2d2d2d;
-          border: 1px solid #404040;
-          border-radius: 4px;
-          box-shadow: 0 3px 15px rgba(0,0,0,0.3);
-        }
-        
-        .ce-inline-toolbar__buttons {
-          color: #e5e5e5;
-        }
-        
-        .ce-inline-tool {
-          color: #e5e5e5;
-          padding: 0.5em;
-        }
-        
-        .ce-inline-tool:hover {
-          background-color: #404040;
-        }
-        
-        .ce-inline-tool--active {
-          color: #60a5fa;
-        }
-        
-        /* Conversion Toolbar */
-        .ce-conversion-toolbar {
-          background-color: #2d2d2d;
-          border: 1px solid #404040;
-          border-radius: 4px;
-          box-shadow: 0 3px 15px rgba(0,0,0,0.3);
-        }
-        
-        .ce-conversion-tool {
-          color: #e5e5e5;
-        }
-        
-        .ce-conversion-tool:hover {
-          background-color: #404040;
-        }
-        
-        .ce-conversion-tool--focused {
-          background-color: #404040;
-        }
-        
-        /* Settings */
-        .ce-settings {
-          background-color: #2d2d2d;
-          border: 1px solid #404040;
-          border-radius: 4px;
-          box-shadow: 0 3px 15px rgba(0,0,0,0.3);
-        }
-        
-        .ce-settings__button {
-          color: #e5e5e5;
-        }
-        
-        .ce-settings__button:hover {
-          background-color: #404040;
-        }
-        
-        .ce-settings__button--active {
-          color: #60a5fa;
-        }
-
-         /* Checklist Styles */
-  .cdx-checklist {
-    margin: 1em 0;
-  }
-  
-  .cdx-checklist__item {
-    display: flex;
-    align-items: flex-start;
-    margin: 0.5em 0;
-  }
-  
-  .cdx-checklist__item-checkbox {
-    width: 20px;
-    height: 20px;
-    margin-right: 0.5em;
-    margin-top: 0.2em;
-    appearance: none;
-    border: 2px solid #666;
-    border-radius: 3px;
-    background-color: transparent;
-    cursor: pointer;
-  }
-  
-  .cdx-checklist__item-checkbox:checked {
-    background-color: #60a5fa;
-    border-color: #60a5fa;
-  }
-  
-  .cdx-checklist__item-checkbox:checked::after {
-    content: '✓';
-    display: block;
-    text-align: center;
-    color: #1a1a1a;
-    line-height: 1;
-    font-size: 14px;
-  }
-  
-  .cdx-checklist__item-text {
-    flex-grow: 1;
-    outline: none;
-    color: #e5e5e5;
-  }
-  
-  .cdx-checklist__item--checked .cdx-checklist__item-text {
-    text-decoration: line-through;
-    color: #888;
-  }
+        .ce-code { background-color: #111827; border: 1px solid #374151; border-radius: 8px; }
+        .ce-code__textarea { color: #d1d5db; font-family: 'Fira Code', ui-monospace, monospace; }
       `}</style>
     </div>
   );
